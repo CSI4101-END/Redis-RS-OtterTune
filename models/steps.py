@@ -196,9 +196,9 @@ def run_knob_identification(knob_data, metric_data, mode, logger):
 
 
 def configuration_recommendation(target_knob, target_metric, logger, gp_type='numpy', db_type='redis', data_type='RDB'):
-    X_columnlabels, X_scaler, X_scaled, y_scaled, X_max, X_min, _ = utils.process_training_data(target_knob,
-                                                                                                target_metric,
-                                                                                                data_type)
+    X_columnlabels, X_scaler, X_scaled, y_scaled, X_max, X_min, _ = (
+        utils.process_training_data(target_knob, target_metric, data_type)
+    )
 
     num_samples = params["NUM_SAMPLES"]
     X_samples = np.empty((num_samples, X_scaled.shape[1]))
