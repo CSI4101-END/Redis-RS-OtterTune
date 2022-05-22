@@ -95,6 +95,7 @@ def knobs_make_dict(knobs_path):
         For mode selection knob, "yes" -> 1 , "no" -> 0
     '''
     config_files = os.listdir(knobs_path)
+    # print(config_files[1])
 
     dict_RDB = {}
     dict_AOF = {}
@@ -108,7 +109,6 @@ def knobs_make_dict(knobs_path):
     ISRDB = 1
 
     config_nums = [_ for _ in range(1, 201)] + [_ for _ in range(10001, 10201)]
-
     for m in config_nums:
         flag = 0
         datas = []
@@ -157,12 +157,11 @@ def knobs_make_dict(knobs_path):
                 datas.append(d1)
                 datas.append(d2)
                 cnt += 1
-
             if l.split()[0] == 'appendonly':
                 flag = ISAOF
             if l.split()[0] == 'save':
                 flag = ISRDB
-
+        
         # add active knobs
         if "activedefrag" not in columns:
             columns.append("activedefrag")
@@ -194,6 +193,7 @@ def knobs_make_dict(knobs_path):
     dict_AOF['data'] = np.array(AOF_datas)
     dict_AOF['rowlabels'] = np.array(AOF_rowlabels)
     dict_AOF['columnlabels'] = np.array(AOF_columns[0])
+
     return dict_RDB, dict_AOF
 
 
@@ -239,7 +239,8 @@ def load_metrics(m_path=' ', labels=[], metrics=None, mode=' '):
 
 
 def load_knobs(k_path):
-    return knobs_make_dict(k_path)
+    a, b = knobs_make_dict(k_path)
+    return a, b
 
 
 def metric_preprocess(metrics):
@@ -381,6 +382,7 @@ def config_exist(persistence):
     while os.path.exists(os.path.join(PATH, NAME)):
         i += 1
         NAME = persistence + '_rec_config{}.conf'.format(i)
+
     return NAME[:-5]
 
 
@@ -388,7 +390,6 @@ from sklearn.preprocessing import StandardScaler
 
 sys.path.append('../')
 from models.util import DataUtil
-
 
 def process_training_data(target_knob, target_metric, data_type):
     # combine the target_data with itself is actually adding nothing to the target_data

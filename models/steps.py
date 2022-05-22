@@ -1,9 +1,9 @@
-
 from models.cluster import KMeansClusters, create_kselection_model
 from models.factor_analysis import FactorAnalysis
 from models.preprocessing import (get_shuffle_indices, consolidate_columnlabels)
 from models.lasso import LassoPath
 from models.xgboost import XGBR
+from models.lgbm import LGBMR
 from models.util import DataUtil
 from models.rf import RFR
 
@@ -101,6 +101,13 @@ def run_knob_identification(knob_data,metric_data,mode, logger):
         xgb_model.fit(shuffled_knob_matrix, shuffled_metric_matrix,encoded_knob_columnlabels)
         encoded_knobs = xgb_model.get_ranked_knobs()
         feature_imp = xgb_model.get_ranked_importance()
+        logger.info('feature importance')
+        logger.info(feature_imp)
+    elif mode == "LGBM":
+        lgbm_model = LGBMR()
+        lgbm_model.fit(shuffled_knob_matrix, shuffled_metric_matrix,encoded_knob_columnlabels)
+        encoded_knobs = lgbm_model.get_ranked_knobs()
+        feature_imp = lgbm_model.get_ranked_importance()
         logger.info('feature importance')
         logger.info(feature_imp)
     elif mode == "RF":
