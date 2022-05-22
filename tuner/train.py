@@ -78,6 +78,9 @@ if __name__ == '__main__':
         internal_metrics_path = os.path.join(DATA_PATH, "result_aof_internal.csv")
         external_metrics_path = os.path.join(DATA_PATH, "result_aof_external.csv")
 
+    assert internal_metrics_path is not None
+    assert external_metrics_path is not None
+
     # logger.info("####################Target workload name is {}".format(opt.workload))
 
     knobs_path = os.path.join(DATA_PATH, "configs")
