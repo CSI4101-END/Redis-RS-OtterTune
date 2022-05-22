@@ -12,7 +12,7 @@ from models.gp import GPRNP
 from sklearn.preprocessing import StandardScaler
 from sklearn.gaussian_process import GaussianProcessRegressor
 import numpy as np
-from models.parameters import *
+from models.parameters import params
 
 import utils
 
@@ -115,88 +115,88 @@ def run_knob_identification(knob_data,metric_data,mode, logger):
 
     return consolidated_knobs
 
-def run_workload_mapping(knob_data, metric_data, target_knob, target_metric, params):
-    '''
-    Args:
-        knob_data: train knob data
-        metric_data: train metric data
-        target_knob: target knob data
-        target_metric: target metric data
-    '''
-    #knob_data["data"],knob_data["columnlabels"] = DataUtil.clean_knob_data(knob_data["data"],knob_data["columnlabels"])
-
-    X_matrix = np.array(knob_data["data"])
-    y_matrix = np.array(metric_data["data"])
-    #rowlabels to np.arange(X_matrix.shape[0])
-    rowlabels = np.array(knob_data["rowlabels"])
-    assert np.array_equal(rowlabels, metric_data["rowlabels"])
-
-    X_matrix, y_matrix, rowlabels = DataUtil.combine_duplicate_rows(
-            X_matrix, y_matrix, rowlabels)
-
-    # If we have multiple workloads and use them to train,
-    # Workload mapping should be called (not implemented yet) and afterward,
-    # Mapped workload will be stored in workload_data.
-    workload_data = {}
-    unique_workload = 'UNIQUE'
-    workload_data[unique_workload] = {
-            'X_matrix': X_matrix,
-            'y_matrix': y_matrix,
-            'rowlabels': rowlabels,
-    }
-
-    if len(workload_data) == 0:
-        # The background task that aggregates the data has not finished running yet
-        target_data.update(mapped_workload=None, scores=None)
-        print('%s: Result = %s\n', task_name, _task_result_tostring(target_data))
-        print('%s: Skipping workload mapping because no different workload is available.',task_name)
-        return target_data, algorithm
-
-    Xs = np.vstack([entry['X_matrix'] for entry in list(workload_data.values())])
-    ys = np.vstack([entry['y_matrix'] for entry in list(workload_data.values())])
-
-    # Scale the X & y values, then compute the deciles for each column in y
-    X_scaler = StandardScaler(copy=False)
-    X_scaler.fit(Xs)
-    y_scaler = StandardScaler(copy=False)
-    y_scaler.fit_transform(ys)
-    y_binner = Bin(bin_start=1, axis=0)
-    y_binner.fit(ys)
-    del Xs
-    del ys
-
-    X_target = target_data['X_matrix']
-    # Filter the target's y data by the pruned metrics.
-    y_target = target_data['y_matrix'][:, pruned_metric_idxs]
-
-    # Now standardize the target's data and bin it by the deciles we just
-    # calculated
-    X_target = X_scaler.transform(X_target)
-    y_target = y_scaler.transform(y_target)
-    y_target = y_binner.transform(y_target)
-
-    predictions = np.empty_like(y_target)
-    X_workload = workload_data['X_matrix']
-    X_scaled = X_scaler.transform(X_workload)
-    y_workload = workload_data['y_matrix']
-    y_scaled = y_scaler.transform(y_workload)
-    for j, y_col in enumerate(y_scaled.T):
-        y_col = y_col.reshape(-1, 1)
-        model = GPRNP(length_scale=params['GPR_LENGTH_SCALE'],
-                        magnitude=params['GPR_MAGNITUDE'],
-                        max_train_size=params['GPR_MAX_TRAIN_SIZE'],
-                        batch_size=params['GPR_BATCH_SIZE'])
-        model.fit(X_scaled, y_col, ridge=params['GPR_RIDGE'])
-        gpr_result = model.predict(X_target)
-        predictions[:, j] = gpr_result.ypreds.ravel()
-    # Bin each of the predicted metric columns by deciles and then
-    # compute the score (i.e., distance) between the target workload and each of the known workloads
-    predictions = y_binner.transform(predictions)
-    dists = np.sqrt(np.sum(np.square(
-                np.subtract(predictions, y_target)), axis=1))
-    scores[workload_id] = np.mean(dists)
-
-    # TODO: return minimum dist workload
+# def run_workload_mapping(knob_data, metric_data, target_knob, target_metric, params):
+#     '''
+#     Args:
+#         knob_data: train knob data
+#         metric_data: train metric data
+#         target_knob: target knob data
+#         target_metric: target metric data
+#     '''
+#     #knob_data["data"],knob_data["columnlabels"] = DataUtil.clean_knob_data(knob_data["data"],knob_data["columnlabels"])
+#
+#     X_matrix = np.array(knob_data["data"])
+#     y_matrix = np.array(metric_data["data"])
+#     #rowlabels to np.arange(X_matrix.shape[0])
+#     rowlabels = np.array(knob_data["rowlabels"])
+#     assert np.array_equal(rowlabels, metric_data["rowlabels"])
+#
+#     X_matrix, y_matrix, rowlabels = DataUtil.combine_duplicate_rows(
+#             X_matrix, y_matrix, rowlabels)
+#
+#     # If we have multiple workloads and use them to train,
+#     # Workload mapping should be called (not implemented yet) and afterward,
+#     # Mapped workload will be stored in workload_data.
+#     workload_data = {}
+#     unique_workload = 'UNIQUE'
+#     workload_data[unique_workload] = {
+#             'X_matrix': X_matrix,
+#             'y_matrix': y_matrix,
+#             'rowlabels': rowlabels,
+#     }
+#
+#     if len(workload_data) == 0:
+#         # The background task that aggregates the data has not finished running yet
+#         target_data.update(mapped_workload=None, scores=None)
+#         print('%s: Result = %s\n', task_name, _task_result_tostring(target_data))
+#         print('%s: Skipping workload mapping because no different workload is available.',task_name)
+#         return target_data, algorithm
+#
+#     Xs = np.vstack([entry['X_matrix'] for entry in list(workload_data.values())])
+#     ys = np.vstack([entry['y_matrix'] for entry in list(workload_data.values())])
+#
+#     # Scale the X & y values, then compute the deciles for each column in y
+#     X_scaler = StandardScaler(copy=False)
+#     X_scaler.fit(Xs)
+#     y_scaler = StandardScaler(copy=False)
+#     y_scaler.fit_transform(ys)
+#     y_binner = Bin(bin_start=1, axis=0)
+#     y_binner.fit(ys)
+#     del Xs
+#     del ys
+#
+#     X_target = target_data['X_matrix']
+#     # Filter the target's y data by the pruned metrics.
+#     y_target = target_data['y_matrix'][:, pruned_metric_idxs]
+#
+#     # Now standardize the target's data and bin it by the deciles we just
+#     # calculated
+#     X_target = X_scaler.transform(X_target)
+#     y_target = y_scaler.transform(y_target)
+#     y_target = y_binner.transform(y_target)
+#
+#     predictions = np.empty_like(y_target)
+#     X_workload = workload_data['X_matrix']
+#     X_scaled = X_scaler.transform(X_workload)
+#     y_workload = workload_data['y_matrix']
+#     y_scaled = y_scaler.transform(y_workload)
+#     for j, y_col in enumerate(y_scaled.T):
+#         y_col = y_col.reshape(-1, 1)
+#         model = GPRNP(length_scale=params['GPR_LENGTH_SCALE'],
+#                         magnitude=params['GPR_MAGNITUDE'],
+#                         max_train_size=params['GPR_MAX_TRAIN_SIZE'],
+#                         batch_size=params['GPR_BATCH_SIZE'])
+#         model.fit(X_scaled, y_col, ridge=params['GPR_RIDGE'])
+#         gpr_result = model.predict(X_target)
+#         predictions[:, j] = gpr_result.ypreds.ravel()
+#     # Bin each of the predicted metric columns by deciles and then
+#     # compute the score (i.e., distance) between the target workload and each of the known workloads
+#     predictions = y_binner.transform(predictions)
+#     dists = np.sqrt(np.sum(np.square(
+#                 np.subtract(predictions, y_target)), axis=1))
+#     scores[workload_id] = np.mean(dists)
+#
+#     # TODO: return minimum dist workload
 
 
 def configuration_recommendation(target_knob, target_metric, logger, gp_type='numpy', db_type='redis', data_type='RDB'):

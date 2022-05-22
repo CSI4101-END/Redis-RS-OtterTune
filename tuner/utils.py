@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+import copy
 import datetime
 import json
 import logging
@@ -181,12 +181,12 @@ def knobs_make_dict(knobs_path):
             #         print('RDB')
             RDB_datas.append(datas)
             RDB_columns.append(columns)
-            RDB_rowlabels.append(m + 1)
+            RDB_rowlabels.append(m - 10000 - 1)
         if flag == ISAOF:
             #         print('AOF')
             AOF_datas.append(datas)
             AOF_columns.append(columns)
-            AOF_rowlabels.append(m + 1)
+            AOF_rowlabels.append(m - 1)
 
     dict_RDB['data'] = np.array(RDB_datas)
     dict_RDB['rowlabels'] = np.array(RDB_rowlabels)
@@ -208,10 +208,7 @@ def metrics_make_dict(pd_metrics, labels):
     # labels = RDB or AOF rowlabels
 
     dict_metrics = {}
-    if labels[0] < 10000:
-        tmp_rowlabels = [_ - 2 for _ in labels]
-    else:
-        tmp_rowlabels = [_ - 10002 for _ in labels]
+    tmp_rowlabels = copy.deepcopy(labels)
 
     pd_metrics = pd_metrics.iloc[tmp_rowlabels][:]
     nan_columns = pd_metrics.columns[pd_metrics.isnull().any()]
