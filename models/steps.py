@@ -236,6 +236,9 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
     else:
         raise Exception("gp_type should be one of (numpy and scikit)")
 
+    res = model.predict(X_samples).ypreds
+    prev_best_score = res.ravel().max()
+
     """
     Genetic Algorithm
     """
@@ -318,7 +321,9 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
     logger.info("Genetic Algorithm end")
     logger.info("#######################\n")
 
-    logger.info(f"Best score: {best_score}, at generation {best_generation}\n")
+    logger.info(f"Best score")
+    logger.info(f"Before GA: {prev_best_score}")
+    logger.info(f"After GA:  {best_score}, at generation {best_generation}\n")
 
     # After evolution complete
     res = model.predict(best_population).ypreds
