@@ -211,7 +211,7 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
     model = None
     if gp_type == 'numpy':
         # DO GPRNP
-        logger.info('do GPRNP')
+        logger.info('do GPRNP\n')
 
         model = GPRNP(
             length_scale=params["GPR_LENGTH_SCALE"],
@@ -239,23 +239,24 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
     """
     Genetic Algorithm
     """
-    logger.info("\n#######################")
+    logger.info("#######################")
     logger.info("Genetic Algorithm start")
     logger.info("#######################\n")
 
     # Hyper parameters
-    max_generation = 1
+    max_generation = 100
     mutation_rate = 0.01
 
     # Initialization
     population = copy.deepcopy(X_samples)
-    n_population = population.shape[0]  # num_samples = 10000
     n_genes = population.shape[1]
 
     generation = 0
     max_score = 0
     while generation <= max_generation:
         logger.info(f"Generation: {generation}")
+        n_population = population.shape[0]
+        logger.info(f"Number of Population: {n_population}")
 
         # Fitness Evaluation
         res = model.predict(population).ypreds
@@ -263,10 +264,11 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
         best_score = scores.max()
         if best_score <= max_score:
             logger.info(f"Current generation's best score {best_score} <= last generation's {max_score}")
-            logger.info(f"Evolution stops here...")
+            logger.info(f"Evolution stops here...\n")
             break
 
         logger.info(f"best score: {best_score}\n")
+        max_score = best_score
 
         sum_score = np.sum(scores)
         weights = [(score / sum_score, i) for i, score in enumerate(scores)]
@@ -293,7 +295,6 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
                 for k in range(n_genes):
                     flag = np.random.uniform(0, 1)
                     if flag < mutation_rate:
-                        print(f"Mutation!!! {flag}")
                         child.append((parent1[k] + parent2[k]) / 2)
                     elif flag < 0.5:
                         child.append(parent1[k])
@@ -304,6 +305,10 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
         # Go to next generation
         population = np.array(new_population)
         generation += 1
+
+    logger.info("#######################")
+    logger.info("Genetic Algorithm end")
+    logger.info("#######################\n")
 
     # After evolution complete
     res = model.predict(population).ypreds
