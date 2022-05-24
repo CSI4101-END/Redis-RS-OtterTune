@@ -245,6 +245,7 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
 
     # Hyper parameters
     max_generation = 100
+    min_generation = 10
     mutation_rate = 0.01
 
     # Initialization
@@ -262,7 +263,7 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
         res = model.predict(population).ypreds
         scores = res.ravel()
         best_score = scores.max()
-        if best_score <= max_score:
+        if generation >= min_generation and best_score <= max_score:
             logger.info(f"Current generation's best score {best_score} <= last generation's {max_score}")
             logger.info(f"Evolution stops here...\n")
             break
