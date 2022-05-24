@@ -253,7 +253,9 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
     n_genes = population.shape[1]
 
     generation = 0
-    max_score = 0
+    best_score = 0
+    best_generation = 0
+    best_population = copy.deepcopy(population)
     while generation <= max_generation:
         logger.info(f"Generation: {generation}")
         n_population = population.shape[0]
@@ -262,36 +264,41 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
         # Fitness Evaluation
         res = model.predict(population).ypreds
         scores = res.ravel()
-        best_score = scores.max()
-        if generation >= min_generation and best_score <= max_score:
-            logger.info(f"Current generation's best score {best_score} <= last generation's {max_score}")
+        max_score = scores.max()
+        if generation >= min_generation and max_score <= best_score:
+            logger.info(f"Current generation's max score {max_score} <= best score {best_score}")
             logger.info(f"Evolution stops here...\n")
             break
 
-        logger.info(f"best score: {best_score}\n")
-        max_score = best_score
+        logger.info(f"Max score: {max_score}\n")
+        if max_score > best_score:
+            best_score = max_score
+            best_generation = generation
+            best_population = copy.deepcopy(population)
 
         sum_score = np.sum(scores)
         weights = [(score / sum_score, i) for i, score in enumerate(scores)]
 
-        # Selection: top half
+        # Selection: top 20%
         weights.sort(key=lambda x: x[0])
-        parents_idx = [weight[1] for weight in weights[:(n_population // 2)]]
+        divide_n = 5
+        n_parents = n_population // divide_n
+        parents_idx = [weight[1] for weight in weights[:n_parents]]
 
         # Production
         np.random.shuffle(parents_idx)
-        n_parents = len(parents_idx)
-        parent1_idxs = parents_idx[:(n_parents // 2)]
-        parent2_idxs = parents_idx[(n_parents // 2):]
+        middle = n_parents // 2
+        parent1_idxs = parents_idx[:middle]
+        parent2_idxs = parents_idx[middle:]
         new_population = []
-        for i in range(n_parents // 2):
+        for i in range(middle):
             parent1_idx = parent1_idxs[i]
             parent2_idx = parent2_idxs[i]
 
             # Crossover & Mutation
             parent1 = population[parent1_idx, :]
             parent2 = population[parent2_idx, :]
-            for j in range(4):
+            for j in range(divide_n * 2):
                 child = []
                 for k in range(n_genes):
                     flag = np.random.uniform(0, 1)
@@ -311,8 +318,10 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
     logger.info("Genetic Algorithm end")
     logger.info("#######################\n")
 
+    logger.info(f"Best score: {best_score}, at generation {best_generation}\n")
+
     # After evolution complete
-    res = model.predict(population).ypreds
+    res = model.predict(best_population).ypreds
 
     best_config_idx = np.argmax(res.ravel())
     # if len(set(res.ravel()))==1:
