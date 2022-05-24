@@ -155,7 +155,7 @@ if __name__ == '__main__':
 
     assert all(train_knob_data['rowlabels'] == train_internal_data['rowlabels'])
 
-    print(f'{opt.persistence} knob data = {len(knob_data)}, {knob_data.keys()}, {knob_data}')
+    # print(f'{opt.persistence} knob data = {len(knob_data)}, {knob_data.keys()}, {knob_data}')
     # print(f'{opt.persistence} metric data = {len(metric_data)}, {metric_data.keys()}, {metric_data}')
 
     ### METRICS SIMPLIFICATION STAGE ###
