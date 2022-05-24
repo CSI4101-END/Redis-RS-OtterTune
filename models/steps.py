@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 import utils
 from models.cluster import KMeansClusters, create_kselection_model
@@ -196,9 +198,9 @@ def run_knob_identification(knob_data, metric_data, mode, logger):
 
 
 def configuration_recommendation(target_knob, target_metric, logger, gp_type='numpy', db_type='redis', data_type='RDB'):
-    X_columnlabels, X_scaler, X_scaled, y_scaled, X_max, X_min, _ = (
-        utils.process_training_data(target_knob, target_metric, data_type)
-    )
+    X_columnlabels, X_scaler, X_scaled, y_scaled, X_max, X_min, _ = utils.process_training_data(target_knob,
+                                                                                                target_metric,
+                                                                                                data_type)
 
     num_samples = params["NUM_SAMPLES"]
     X_samples = np.empty((num_samples, X_scaled.shape[1]))
@@ -206,6 +208,7 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
         X_samples[:, i] = np.random.rand(num_samples) * (X_max[i] - X_min[i]) + X_min[i]
 
     res = None
+    model = None
     if gp_type == 'numpy':
         # DO GPRNP
         logger.info('do GPRNP')
@@ -217,7 +220,7 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
             batch_size=params['GPR_BATCH_SIZE']
         )
         model.fit(X_scaled, y_scaled, ridge=params["GPR_RIDGE"])
-        res = model.predict(X_samples).ypreds
+        # res = model.predict(X_samples).ypreds
     elif gp_type == 'scikit':
         # # DO SCIKIT-LEARN GP
         # model = GaussianProcessRegressor().fit(X_scaled,y_scaled)
@@ -229,13 +232,81 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
         model = GaussianProcessRegressor(kernel=GPRkernel,
                                          alpha=params["ALPHA"]).fit(X_scaled, y_scaled)
         res = model.predict(X_samples)
-        del model
+        # del model
     else:
         raise Exception("gp_type should be one of (numpy and scikit)")
 
     """
     Genetic Algorithm
     """
+    logger.info("\n#######################")
+    logger.info("Genetic Algorithm start")
+    logger.info("#######################\n")
+
+    # Hyper parameters
+    max_generation = 1
+    mutation_rate = 0.01
+
+    # Initialization
+    population = copy.deepcopy(X_samples)
+    n_population = population.shape[0]  # num_samples = 10000
+    n_genes = population.shape[1]
+
+    generation = 0
+    max_score = 0
+    while generation <= max_generation:
+        logger.info(f"Generation: {generation}")
+
+        # Fitness Evaluation
+        res = model.predict(population).ypreds
+        scores = res.ravel()
+        best_score = scores.max()
+        if best_score <= max_score:
+            logger.info(f"Current generation's best score {best_score} <= last generation's {max_score}")
+            logger.info(f"Evolution stops here...")
+            break
+
+        logger.info(f"best score: {best_score}\n")
+
+        sum_score = np.sum(scores)
+        weights = [(score / sum_score, i) for i, score in enumerate(scores)]
+
+        # Selection: top half
+        weights.sort(key=lambda x: x[0])
+        parents_idx = [weight[1] for weight in weights[:(n_population // 2)]]
+
+        # Production
+        np.random.shuffle(parents_idx)
+        n_parents = len(parents_idx)
+        parent1_idxs = parents_idx[:(n_parents // 2)]
+        parent2_idxs = parents_idx[(n_parents // 2):]
+        new_population = []
+        for i in range(n_parents // 2):
+            parent1_idx = parent1_idxs[i]
+            parent2_idx = parent2_idxs[i]
+
+            # Crossover & Mutation
+            parent1 = population[parent1_idx, :]
+            parent2 = population[parent2_idx, :]
+            for j in range(4):
+                child = []
+                for k in range(n_genes):
+                    flag = np.random.uniform(0, 1)
+                    if flag < mutation_rate:
+                        print(f"Mutation!!! {flag}")
+                        child.append((parent1[k] + parent2[k]) / 2)
+                    elif flag < 0.5:
+                        child.append(parent1[k])
+                    else:
+                        child.append(parent2[k])
+                new_population.append(child)
+
+        # Go to next generation
+        population = np.array(new_population)
+        generation += 1
+
+    # After evolution complete
+    res = model.predict(population).ypreds
 
     best_config_idx = np.argmax(res.ravel())
     # if len(set(res.ravel()))==1:
