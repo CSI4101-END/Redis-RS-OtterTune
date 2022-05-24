@@ -327,6 +327,7 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
 
     # After evolution complete
     res = model.predict(best_population).ypreds
+    del model
 
     best_config_idx = np.argmax(res.ravel())
     # if len(set(res.ravel()))==1:
