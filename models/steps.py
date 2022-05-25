@@ -1,20 +1,17 @@
+import copy
 
+import numpy as np
+import utils
 from models.cluster import KMeansClusters, create_kselection_model
 from models.factor_analysis import FactorAnalysis
-from models.preprocessing import (get_shuffle_indices, consolidate_columnlabels)
-from models.lasso import LassoPath
-from models.xgboost import XGBR
-from models.util import DataUtil
-from models.rf import RFR
-
 from models.gp import GPRNP
-
-from sklearn.preprocessing import StandardScaler
-from sklearn.gaussian_process import GaussianProcessRegressor
-import numpy as np
+from models.lasso import LassoPath
 from models.parameters import params
-
-import utils
+from models.preprocessing import (get_shuffle_indices, consolidate_columnlabels)
+from models.rf import RFR
+from models.xgboost import XGBR
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.preprocessing import StandardScaler
 
 
 def run_workload_characterization(metric_data):
@@ -28,7 +25,7 @@ def run_workload_characterization(metric_data):
     # Remove any constant columns
     nonconst_matrix = []
     nonconst_columnlabels = []
-    for col, (_,v) in zip(matrix.T, enumerate(columnlabels)):
+    for col, (_, v) in zip(matrix.T, enumerate(columnlabels)):
         if np.any(col != col[0]):
             nonconst_matrix.append(col.reshape(-1, 1))
             nonconst_columnlabels.append(v)
@@ -71,12 +68,12 @@ def run_workload_characterization(metric_data):
     return pruned_metrics
 
 
-def run_knob_identification(knob_data,metric_data,mode, logger):  
+def run_knob_identification(knob_data, metric_data, mode, logger):
     knob_matrix = knob_data['data']
     knob_columnlabels = knob_data['columnlabels']
 
     metric_matrix = metric_data['data']
-    #metric_columnlabels = metric_data['columnlabels']
+    # metric_columnlabels = metric_data['columnlabels']
 
     encoded_knob_columnlabels = knob_columnlabels
     encoded_knob_matrix = knob_matrix
@@ -92,20 +89,20 @@ def run_knob_identification(knob_data,metric_data,mode, logger):
     shuffled_metric_matrix = standardized_metric_matrix[shuffle_indices, :]
 
     if mode == 'lasso':
-    # run lasso algorithm
+        # run lasso algorithm
         lasso_model = LassoPath()
-        lasso_model.fit(shuffled_knob_matrix, shuffled_metric_matrix, encoded_knob_columnlabels)        
+        lasso_model.fit(shuffled_knob_matrix, shuffled_metric_matrix, encoded_knob_columnlabels)
         encoded_knobs = lasso_model.get_ranked_features()
     elif mode == "XGB":
         xgb_model = XGBR()
-        xgb_model.fit(shuffled_knob_matrix, shuffled_metric_matrix,encoded_knob_columnlabels)
+        xgb_model.fit(shuffled_knob_matrix, shuffled_metric_matrix, encoded_knob_columnlabels)
         encoded_knobs = xgb_model.get_ranked_knobs()
         feature_imp = xgb_model.get_ranked_importance()
         logger.info('feature importance')
         logger.info(feature_imp)
     elif mode == "RF":
         rf = RFR()
-        rf.fit(shuffled_knob_matrix,shuffled_metric_matrix,encoded_knob_columnlabels)
+        rf.fit(shuffled_knob_matrix, shuffled_metric_matrix, encoded_knob_columnlabels)
         encoded_knobs = rf.get_ranked_features()
         feature_imp = rf.get_ranked_importance()
         logger.info('feature importance')
@@ -114,6 +111,7 @@ def run_knob_identification(knob_data,metric_data,mode, logger):
     consolidated_knobs = consolidate_columnlabels(encoded_knobs)
 
     return consolidated_knobs
+
 
 # def run_workload_mapping(knob_data, metric_data, target_knob, target_metric, params):
 #     '''
@@ -200,7 +198,9 @@ def run_knob_identification(knob_data,metric_data,mode, logger):
 
 
 def configuration_recommendation(target_knob, target_metric, logger, gp_type='numpy', db_type='redis', data_type='RDB'):
-    X_columnlabels, X_scaler, X_scaled, y_scaled, X_max, X_min, _ = utils.process_training_data(target_knob, target_metric, data_type)
+    X_columnlabels, X_scaler, X_scaled, y_scaled, X_max, X_min, _ = utils.process_training_data(target_knob,
+                                                                                                target_metric,
+                                                                                                data_type)
 
     num_samples = params["NUM_SAMPLES"]
     X_samples = np.empty((num_samples, X_scaled.shape[1]))
@@ -208,16 +208,19 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
         X_samples[:, i] = np.random.rand(num_samples) * (X_max[i] - X_min[i]) + X_min[i]
 
     res = None
+    model = None
     if gp_type == 'numpy':
         # DO GPRNP
-        model = GPRNP(length_scale = params["GPR_LENGTH_SCALE"],
-                        magnitude=params["GPR_MAGNITUDE"],
-                        max_train_size=params['GPR_MAX_TRAIN_SIZE'],
-                        batch_size=params['GPR_BATCH_SIZE'])
-        model.fit(X_scaled,y_scaled,ridge=params["GPR_RIDGE"])
-        res = model.predict(X_samples).ypreds
-        logger.info('do GPRNP')
-        del model
+        logger.info('do GPRNP\n')
+
+        model = GPRNP(
+            length_scale=params["GPR_LENGTH_SCALE"],
+            magnitude=params["GPR_MAGNITUDE"],
+            max_train_size=params['GPR_MAX_TRAIN_SIZE'],
+            batch_size=params['GPR_BATCH_SIZE']
+        )
+        model.fit(X_scaled, y_scaled, ridge=params["GPR_RIDGE"])
+        # res = model.predict(X_samples).ypreds
     elif gp_type == 'scikit':
         # # DO SCIKIT-LEARN GP
         # model = GaussianProcessRegressor().fit(X_scaled,y_scaled)
@@ -226,12 +229,105 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
 
         from sklearn.gaussian_process.kernels import DotProduct
         GPRkernel = DotProduct(sigma_0=0.5)
-        model = GaussianProcessRegressor(kernel = GPRkernel,
-                            alpha = params["ALPHA"]).fit(X_scaled,y_scaled)
+        model = GaussianProcessRegressor(kernel=GPRkernel,
+                                         alpha=params["ALPHA"]).fit(X_scaled, y_scaled)
         res = model.predict(X_samples)
-        del model
+        # del model
     else:
         raise Exception("gp_type should be one of (numpy and scikit)")
+
+    res = model.predict(X_samples).ypreds
+    prev_best_score = res.ravel().max()
+
+    """
+    Genetic Algorithm
+    """
+    logger.info("#######################")
+    logger.info("Genetic Algorithm start")
+    logger.info("#######################\n")
+
+    # Hyper parameters
+    max_generation = 100
+    min_generation = 30
+    mutation_rate = 0.01
+
+    # Initialization
+    population = copy.deepcopy(X_samples)
+    n_genes = population.shape[1]
+
+    generation = 0
+    best_score = 0
+    best_generation = 0
+    best_population = copy.deepcopy(population)
+    while generation <= max_generation:
+        logger.info(f"Generation: {generation}")
+        n_population = population.shape[0]
+        logger.info(f"Number of Population: {n_population}")
+
+        # Fitness Evaluation
+        res = model.predict(population).ypreds
+        scores = res.ravel()
+        max_score = scores.max()
+        if generation >= min_generation and max_score <= best_score:
+            logger.info(f"Current generation's max score {max_score} <= best score {best_score}")
+            logger.info(f"Evolution stops here...\n")
+            break
+
+        logger.info(f"Max score: {max_score}\n")
+        if max_score > best_score:
+            best_score = max_score
+            best_generation = generation
+            best_population = copy.deepcopy(population)
+
+        sum_score = np.sum(scores)
+        weights = [(score / sum_score, i) for i, score in enumerate(scores)]
+
+        # Selection: top 20%
+        weights.sort(key=lambda x: x[0], reverse=True)
+        divide_n = 5
+        n_parents = n_population // divide_n
+        parents_idx = [weight[1] for weight in weights[:n_parents]]
+
+        # Production
+        np.random.shuffle(parents_idx)
+        middle = n_parents // 2
+        parent1_idxs = parents_idx[:middle]
+        parent2_idxs = parents_idx[middle:]
+        new_population = []
+        for i in range(middle):
+            parent1_idx = parent1_idxs[i]
+            parent2_idx = parent2_idxs[i]
+
+            # Crossover & Mutation
+            parent1 = population[parent1_idx, :]
+            parent2 = population[parent2_idx, :]
+            for j in range(divide_n * 2):
+                child = []
+                for k in range(n_genes):
+                    flag = np.random.uniform(0, 1)
+                    if flag < mutation_rate:
+                        child.append((parent1[k] + parent2[k]) / 2)
+                    elif flag < 0.5:
+                        child.append(parent1[k])
+                    else:
+                        child.append(parent2[k])
+                new_population.append(child)
+
+        # Go to next generation
+        population = np.array(new_population)
+        generation += 1
+
+    logger.info("#######################")
+    logger.info("Genetic Algorithm end")
+    logger.info("#######################\n")
+
+    logger.info(f"Best score")
+    logger.info(f"Before GA: {prev_best_score}")
+    logger.info(f"After GA:  {best_score}, at generation {best_generation}\n")
+
+    # After evolution complete
+    res = model.predict(best_population).ypreds
+    del model
 
     best_config_idx = np.argmax(res.ravel())
     # if len(set(res.ravel()))==1:
@@ -246,7 +342,7 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
     conf_map = {k: best_config[i] for i, k in enumerate(X_columnlabels)}
     # logger.info("\n\n\n")
     logger.info(conf_map)
-    #convert_dict_to_conf(conf_map, data_type)
+    # convert_dict_to_conf(conf_map, data_type)
 
     logger.info("FINISH TRAIN")
     print(np.max(res.ravel()))
