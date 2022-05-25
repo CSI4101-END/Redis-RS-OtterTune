@@ -283,7 +283,7 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
         weights = [(score / sum_score, i) for i, score in enumerate(scores)]
 
         # Selection: top 20%
-        weights.sort(key=lambda x: x[0])
+        weights.sort(key=lambda x: x[0], reverse=True)
         divide_n = 5
         n_parents = n_population // divide_n
         parents_idx = [weight[1] for weight in weights[:n_parents]]
