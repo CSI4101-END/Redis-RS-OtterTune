@@ -248,7 +248,7 @@ def configuration_recommendation(target_knob, target_metric, logger, gp_type='nu
 
     # Hyper parameters
     max_generation = 100
-    min_generation = 10
+    min_generation = 30
     mutation_rate = 0.01
 
     # Initialization
